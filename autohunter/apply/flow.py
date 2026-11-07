@@ -63,6 +63,11 @@ def _files(me: Path, folder: Path | None) -> tuple[dict, list[str]]:
         files["resume"] = str(named)
     if letter:
         files["letter"] = str(to_pdf(letter))
+        try:  # for forms that want the letter pasted into a text box instead of uploaded
+            from docx import Document
+            files["letter_text"] = "\n\n".join(p.text.strip() for p in Document(str(letter)).paragraphs if p.text.strip())
+        except Exception:
+            pass
     if files["resume"].endswith(".docx"):
         notes.append("简历传的是 .docx（没能导出 PDF：需要 Microsoft Word）")
     return files, notes
@@ -133,6 +138,7 @@ def cmd_scan(me: Path, url: str, folder_arg: str | None, force: bool, quiet: boo
                           "needs_answer": [{"key": q["key"], "kind": q["kind"], "label": q["label"],
                                             "required": q["required"], "options": q["options"][:30]}
                                            for q in unknown if q["key"] not in data["answers"]],
+                          "needs_letter": needs_letter(questions, files),
                           "consents_to_tick": [{"key": q["key"], "label": q["label"][:600], "choice": auto[q["key"]]["value"]}
                                                for q in questions if auto.get(q["key"], {}).get("source") == "consent"],
                           "notes": notes}, ensure_ascii=False, indent=2))
@@ -207,6 +213,18 @@ def cmd_fill_workday(me: Path, url: str, folder_arg: str | None, force: bool, ma
 ACCOUNT_ATS = ("icims.com", "oraclecloud.com", "taleo.net", "successfactors", "jobvite.com", "brassring")
 
 
+LETTER_RE = re.compile(r"cover letter|letter of (interest|motivation)|motivation letter", re.I)
+
+
+def needs_letter(questions: list[dict], files: dict) -> bool:
+    """The form has a cover-letter field (upload or text box, required or optional) but no letter
+    has been written for this job yet. The user's rule: then write one."""
+    if files.get("letter"):
+        return False
+    return any(q["kind"] in ("file", "textarea") and LETTER_RE.search(f"{q.get('label', '')} {q.get('hint', '')}".replace("_", " "))
+               for q in questions)
+
+
 def generic_ok(url: str) -> bool:
     """A company-built form we can try with the generic multi-step engine (no ATS account)."""
     return platform_of(url) == "other" and not any(h in url for h in ACCOUNT_ATS)
@@ -230,6 +248,8 @@ def cmd_fill_generic(me: Path, url: str, folder_arg: str | None, force: bool, ma
         r = fill_multistep(page, profile, files, saved.get("label_answers", {}))
         summary = json.loads((folder / "summary.json").read_text(encoding="utf-8")) if folder and (folder / "summary.json").exists() else {}
         todo = [f"“{u['label'][:50]}”（第 {u['step']} 步）必填，还没答" for u in r["unknown"]] + r["todo"] + notes
+        if r.get("needs_letter"):
+            todo.insert(0, "✉️ 这个表有 cover letter 栏，还没写：让我写一封再重新填（按你的规则，选填也写）")
         if not r["at_submit"] and not r["unknown"]:
             todo.insert(0, f"停在第 {r['steps']} 步，没走到提交页")
         warn = [f"这家公司你已经投了 {dup['company_count']} 个"] if dup["company_count"] else []
@@ -241,16 +261,18 @@ def cmd_fill_generic(me: Path, url: str, folder_arg: str | None, force: bool, ma
                  "consents": consents, "done_count": len(r["done"]), "collapsed": cfg.get("panel") == "collapsed"}
         inject_panel(page, panel)
         page_url = page.url
-    saved.update(url=url, generic_unknown=r["unknown"])
+    saved.update(url=url, generic_unknown=r["unknown"], filled=r["filled"], apply_page=page_url)
     saved.setdefault("label_answers", {})
     path.write_text(json.dumps(saved, indent=2, ensure_ascii=False), encoding="utf-8")
-    log.add_pending(me, {"base": base_url(page_url), "url": url, "folder": str(folder) if folder else "",
+    log.add_pending(me, {"base": base_url(url), "page_base": base_url(page_url), "url": url,
+                         "folder": str(folder) if folder else "",
                          "tracker_id": job.get("id", ""), "company": job.get("company", ""), "title": job.get("title", ""),
                          "platform": "generic", "resume": files.get("resume", ""), "letter": files.get("letter", ""),
                          "source": job.get("source", "") or "manual", "panel": panel,
                          "started": datetime.now().isoformat(timespec="seconds")})
     start_background(me, main_py)
     print(json.dumps({"steps": r["steps"], "at_submit": r["at_submit"], "filled": len(r["done"]), "unknown": r["unknown"],
+                      "needs_letter": r.get("needs_letter", False),
                       "todo": todo, "consents": r["consents"], "form": str(path),
                       "how_to_answer": "put {label: value} in form.json → label_answers, then run apply fill again"},
                      ensure_ascii=False, indent=2))
@@ -262,6 +284,9 @@ def cmd_fill(me: Path, url: str, folder_arg: str | None, force: bool, main_py: P
 
     if platform_of(url) == "workday":
         return cmd_fill_workday(me, url, folder_arg, force, main_py)
+    from .kit import is_manual
+    if is_manual(me, url):
+        return cmd_kit(me, url, folder_arg, main_py)
     if generic_ok(url):
         return cmd_fill_generic(me, url, folder_arg, force, main_py)
     _require_settings(me)
@@ -289,6 +314,9 @@ def cmd_fill(me: Path, url: str, folder_arg: str | None, force: bool, main_py: P
             if isinstance(a, dict) and a.get("source") == "claude":
                 drafts.append(next(q["label"] for q in questions if q["key"] == key)[:50])
         done, todo = fill(page, questions, answers, files)
+        letter_missing = needs_letter(questions, files)
+        if letter_missing:
+            todo.insert(0, "✉️ 这个表有 cover letter 栏，还没写：让我写一封再重新填（按你的规则，选填也写）")
         summaries = saved.get("consent_summaries", {})
         consents = [{"label": q["label"][:80], "chosen": str(answers[q["key"]])[:40],
                      "summary": summaries.get(q["key"]) or (q["label"][:140] + ("…" if len(q["label"]) > 140 else ""))}
@@ -322,14 +350,48 @@ def cmd_fill(me: Path, url: str, folder_arg: str | None, force: bool, main_py: P
                          "source": job.get("source", "") or "manual", "panel": panel,
                          "started": datetime.now().isoformat(timespec="seconds")})
     start_background(me, main_py)
-    print(json.dumps({"filled": len(done), "todo": todo, "warn": warn,
+    print(json.dumps({"filled": len(done), "todo": todo, "warn": warn, "needs_letter": letter_missing,
                       "consents_ticked": [c["label"] for c in consents]}, ensure_ascii=False, indent=2))
 
 
 def cmd_go(me: Path, url: str, folder_arg: str | None, force: bool, main_py: Path) -> None:
     if platform_of(url) == "workday":  # Workday has no separate scan: questions appear step by step
         return cmd_fill_workday(me, url, folder_arg, force, main_py)
+    from .kit import is_manual
+    if is_manual(me, url):
+        return cmd_kit(me, url, folder_arg, main_py)
     if generic_ok(url):
         return cmd_fill_generic(me, url, folder_arg, force, main_py)
     cmd_scan(me, url, folder_arg, force, quiet=True)
     cmd_fill(me, url, folder_arg, force, main_py)
+
+
+def cmd_kit(me: Path, url: str, folder_arg: str | None, main_py: Path) -> None:
+    """Manual-submit kit: (re)fill in the AutoHunter Chrome to collect answers, then open the apply
+    page in the user's own Chrome next to a copy-paste cheat sheet, and remember the site."""
+    from . import kit
+    from .browser import connect
+    from .form import fill_multistep, open_generic
+    job = _job(me, url)
+    folder = _folder(me, job, folder_arg)
+    if folder is None:
+        sys.exit("这个岗位还没有定制简历：先跑 /tailor。")
+    files, _ = _files(me, folder)
+    path = _form_path(me, folder, url)
+    saved = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    if not saved.get("filled"):
+        profile, _ = _profile(me, files, job.get("title", "") or url)
+        with connect() as (_, _, context):
+            page = open_generic(context, url)
+            r = fill_multistep(page, profile, files, saved.get("label_answers", {}))
+            saved.update(filled=r["filled"], generic_unknown=r["unknown"], apply_page=page.url)
+            page.close()  # the automated tab is only scratch here
+        path.write_text(json.dumps(saved, indent=2, ensure_ascii=False), encoding="utf-8")
+    sheet = kit.build(me, folder, saved, job, files.get("resume", ""))
+    kit.copy_to_clipboard(json.dumps(kit.fill_data(saved, files.get("resume", "")), ensure_ascii=False))
+    kit.remember(me, url)
+    log.drop_pending(me, base_url(url))
+    kit.open_in_users_chrome(saved.get("apply_page") or url)
+    kit.open_in_users_chrome(sheet.resolve().as_uri())
+    print(json.dumps({"kit": str(sheet), "apply_page": saved.get("apply_page") or url, "answers": len(saved.get("filled", [])),
+                      "remembered_manual_site": True}, ensure_ascii=False, indent=2))

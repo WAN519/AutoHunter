@@ -422,17 +422,31 @@ def _buttons(page) -> list[dict]:
 
 def open_generic(context, url: str):
     """Company-built application pages (e.g. Tesla): open the posting; if no form, click Apply."""
-    from .browser import find_page
-    page = find_page(context, base_url(url)) or context.new_page()
-    page.goto(url, wait_until="load", timeout=60000)
-    page.wait_for_timeout(3500)
-    qs = page.evaluate(SCAN_JS)
-    looks_like_form = any(q["kind"] in ("file", "email") or re.search(r"e-?mail|first name", q["label"], re.I) for q in qs)
-    if not looks_like_form:  # a posting page (maybe with a search box): go to its application
+    def is_form(p) -> bool:
+        qs = p.evaluate(SCAN_JS)
+        return any(q["kind"] in ("file", "email") or re.search(r"e-?mail|first name", q["label"], re.I) for q in qs)
+
+    ids = set(re.findall(r"\d{4,}", url))
+    host = urlparse(url).netloc
+    # A tab already on this job's application form (e.g. after a failed submit): start over there.
+    page = next((p for p in context.pages if urlparse(p.url).netloc == host and ids & set(re.findall(r"\d{4,}", p.url))
+                 and re.search(r"apply|application", p.url, re.I)), None)
+    if page is None:
+        page = context.new_page()
+        page.goto(url, wait_until="load", timeout=60000)
+        page.wait_for_timeout(3500)
+    else:
+        page.reload(wait_until="load")
+        page.wait_for_timeout(3500)
+    if not is_form(page):  # a posting page (maybe with a search box): go to its application
         link = page.locator("a, button").filter(has_text=re.compile(r"^\s*apply( now)?\s*$", re.I)).locator("visible=true")
         if link.count():
-            link.first.click()
-            page.wait_for_load_state("load")
+            href = link.first.get_attribute("href")
+            if href and href.startswith(("http", "/")):
+                page.goto(href if href.startswith("http") else f"{urlparse(page.url).scheme}://{host}{href}", wait_until="load")
+            else:
+                link.first.click()
+                page.wait_for_load_state("load")
             page.wait_for_timeout(4000)
     page.bring_to_front()
     return page
@@ -442,6 +456,8 @@ def fill_multistep(page, profile, files: dict, label_answers: dict, max_steps: i
     """Fill → Next → … until a Submit button shows up (never clicked) or a step can't advance.
     label_answers: {label: value} for questions the rules don't know (from Claude / the user)."""
     done_all, todo_all, unknown_all, consents = [], [], [], []
+    filled: list[dict] = []
+    letter_field = False
     step = 0
     for step in range(1, max_steps + 1):
         questions = scan(page)
@@ -460,6 +476,15 @@ def fill_multistep(page, profile, files: dict, label_answers: dict, max_steps: i
                 todo_all.append(f"✍️ 电子签名「{q['label']}」：请你自己输入法定姓名（等于签署上面的条款），我不会替你签")
         done, todo = fill(page, questions, answers, files)
         done_all += done
+        if not files.get("letter") and any(q["kind"] in ("file", "textarea") and re.search(r"cover letter", q["label"] + " " + q.get("hint", "").replace("_", " "), re.I) for q in questions):
+            letter_field = True
+        by_key = {q["key"]: q for q in questions}
+        for k, v in answers.items():
+            q = by_key.get(k)
+            if q and v is not None:
+                shown = Path(files.get("resume", "")).name if v == RESUME else Path(files.get("letter", "")).name if v == LETTER else v
+                filled.append({"step": step, "label": q["label"] or q.get("hint", ""), "kind": q["kind"],
+                               "value": ", ".join(shown) if isinstance(shown, list) else str(shown)})
         unknown_all += [{"step": step, "label": q["label"], "kind": q["kind"], "options": q["options"][:30],
                          "required": q["required"]} for q in unknown if q["required"]]
         if any(q["required"] for q in unknown):
@@ -485,4 +510,5 @@ def fill_multistep(page, profile, files: dict, label_answers: dict, max_steps: i
             todo_all.append("点 Next 没有前进" + (f"：{'; '.join(errs)}" if errs else ""))
             break
     return {"steps": step, "done": done_all, "todo": todo_all, "unknown": unknown_all, "consents": consents,
+            "filled": filled, "needs_letter": letter_field,
             "at_submit": any(SUBMIT_RE.match(b["text"]) for b in _buttons(page))}

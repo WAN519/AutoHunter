@@ -138,6 +138,14 @@ they log in once in that window and it's remembered.
    the hotkey, and check `me/output/hotkey.log`. On LinkedIn / Jobright / Handshake it only tells
    them to open the company's own apply page, by design.
 
+## 9b. Fill bookmark (for sites that reject automated submits)
+
+Some sites (e.g. Tesla) reject submissions from the AutoHunter Chrome. For those, AutoHunter opens
+the apply page in the user's own Chrome and a bookmark fills it. Install once: open
+`me/output/bookmarklet.html` (created by `uv run python -c "from pathlib import Path; from
+autohunter.apply import kit; print(kit.install_page(Path('me')))"`) in their normal Chrome and drag
+the blue button to the bookmarks bar. Chrome asks once to allow clipboard access: allow.
+
 ## 10. Daily schedule (optional)
 
 Explain the cost first: roughly $1–2 of Claude usage per job (scoring + tailoring + filling),

@@ -16,6 +16,7 @@
   leads                     part-time / intern leads from HN Who-is-hiring -> output/leads.csv
   settings                  settings form: contact info, Workday password (Keychain), schedule
   apply scan|fill|go <url>  fill an application in the AutoHunter Chrome (never submits)
+  apply kit <url>           manual-submit kit for sites that reject automated submits
   sheets setup|connect|sync|pull   applied log <-> your Google Sheet (Apps Script)
 
 Personal files live in --me (default ./me), which is git-ignored.
@@ -262,6 +263,11 @@ def cmd_sheets(args, me: Path):
 
 def cmd_apply(args, me: Path):
     from autohunter.apply import flow
+    if args.action == "kit":
+        if not args.url:
+            sys.exit("usage: apply kit <posting url>")
+        flow.cmd_kit(me, args.url, args.folder, Path(__file__).resolve())
+        return
     if args.action == "watch":
         from autohunter.apply import watch
         watch.run(me)
@@ -358,7 +364,7 @@ def main():
     p.set_defaults(fn=cmd_sheets)
 
     p = sub.add_parser("apply", help="fill an application form (never submits)")
-    p.add_argument("action", choices=["scan", "fill", "go", "watch"])
+    p.add_argument("action", choices=["scan", "fill", "go", "watch", "kit"])
     p.add_argument("url", nargs="?")
     p.add_argument("--folder", help="application folder (default: the tracker row's folder)")
     p.add_argument("--force", action="store_true", help="fill even if it looks like a duplicate")

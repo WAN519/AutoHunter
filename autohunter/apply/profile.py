@@ -110,6 +110,10 @@ class Profile:
                 return RESUME, "file"
             return None, None
 
+        if kind == "textarea" and re.search(r"cover letter|letter of (interest|motivation)|motivation letter", label):
+            text = self.files.get("letter_text")
+            return (text, "letter") if text else (None, None)  # no letter yet → Claude / the user writes it
+
         for item in self.learned:  # the user's own past answers win over generic rules
             if item.get("match") and norm(item["match"]) in label:
                 a = item.get("answer")

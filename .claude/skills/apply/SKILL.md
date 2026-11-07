@@ -77,6 +77,13 @@ anything still missing) and starts the background watcher. When the user submits
 saves a screenshot, appends `me/output/applied.csv` and marks the tracker row APPLIED. No need
 to ask them to report back.
 
+## 5b. Cover letter field
+
+If scan or fill reports `needs_letter: true` and me/config.json → "apply" → `cover_letter` isn't
+`"required"`: write the letter now (the /tailor skill, step 4, into the same folder), then run
+`apply fill` again. It uploads the PDF, or pastes the text if the form wants a text box. In the
+background, do the same without asking.
+
 ## 6. Tell the user
 
 Short: which tab, how many fields filled, the list from `todo` (essays to read, fields they

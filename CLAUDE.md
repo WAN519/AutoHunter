@@ -63,7 +63,9 @@ autohunter/
                              (token-checked; résumé PDFs to their Drive; their edits are never overwritten)
   apply/                     form filling (Playwright over CDP): browser, settings (+Keychain),
                              profile (label → answer rules), form (scan/fill/panel), log, watch,
-                             workday (account + step-by-step fill to Review)
+                             workday (account + step-by-step fill to Review), kit + fillscript.js
+                             (sites that reject automated submits: bookmarklet fills the user's own
+                             Chrome from clipboard data; never signs, never submits)
 me/                          per user, git-ignored: config.json (+ "apply" settings), answers.json,
                              experience.json (structured resume for forms),
                              (default + learned form answers), resume.docx, profile.md,

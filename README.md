@@ -40,6 +40,7 @@
 | Workday | 自动注册或登录账号（每家公司只注册一个），一步一步填到 Review 页 |
 | 公司自己做的申请页（例如 Tesla） | 通用的多步填表，遇到不认识的项会停下来问你 |
 | Eightfold / 公司招聘首页 | 自动找到背后真正的申请链接（比如 HP → Workday） |
+| 拒绝自动化浏览器提交的网站（例如 Tesla） | 半自动：申请页在**你自己的 Chrome** 打开，点书签「AutoHunter 填表」填当前页 → 你点 Next → 再点书签 → … → 你提交。书签装一次：`uv run main.py apply kit <链接>` 会打开安装页 |
 
 **不会自动操作的**：LinkedIn、Jobright、Handshake、Indeed、Glassdoor。这些网站的条款禁止用脚本访问，
 或者账号太重要，不值得冒险。你在这些网站上看到岗位，点 Apply 跳到公司官网的页面后，再按快捷键。

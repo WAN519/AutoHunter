@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 import platform
+import re
 import subprocess
 import sys
 import time
@@ -18,6 +19,8 @@ from . import log
 from .form import base_url, inject_panel, is_confirmation
 
 SNAPSHOT_EVERY = 30
+FAILED_RE = re.compile(r"something went wrong|submission failed|failed to submit|please try again|session (has )?expired|"
+                       r"an error occurred|unable to (submit|process)|application could not be", re.I)
 MAX_HOURS = 12
 
 
@@ -64,7 +67,7 @@ def run(me: Path) -> None:
                 for entry in pending:
                     for page in list(context.pages):
                         try:
-                            if base_url(page.url) != entry["base"]:
+                            if base_url(page.url) not in (entry["base"], entry.get("page_base")):
                                 continue
                             body = page.evaluate("document.body ? document.body.innerText : ''")
                         except Exception:
@@ -87,6 +90,12 @@ def run(me: Path) -> None:
                             notify("AutoHunter 已记录", f"{row['company']} · {row['title']}")
                             print(f"recorded {row['company']} | {row['title']}", flush=True)
                             break
+                        if FAILED_RE.search(body) and not entry.get("failed_notified"):
+                            entry["failed_notified"] = True
+                            log.save_pending(me, [entry if log._same_job(p_, entry) else p_ for p_ in log.load_pending(me)])
+                            notify("AutoHunter：提交好像失败了",
+                                   f"{entry.get('company', '')}：在岗位页面按快捷键，选「重新填一遍」，1–2 分钟就能重来")
+                            print(f"submit failed? {entry.get('company')}", flush=True)
                         try:  # panel gone after a reload / next step: put it back
                             if not page.evaluate("!!document.getElementById('autohunter-panel')") and entry.get("panel"):
                                 inject_panel(page, entry["panel"])

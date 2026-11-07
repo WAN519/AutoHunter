@@ -40,8 +40,14 @@ def save_pending(me: Path, items: list[dict]) -> None:
     p.write_text(json.dumps(items, indent=2, ensure_ascii=False), encoding="utf-8")
 
 
+def _same_job(a: dict, b: dict) -> bool:
+    keys_a = {a.get("base"), a.get("page_base")} - {None, ""}
+    keys_b = {b.get("base"), b.get("page_base")} - {None, ""}
+    return bool(keys_a & keys_b) or (a.get("tracker_id") and a.get("tracker_id") == b.get("tracker_id"))
+
+
 def add_pending(me: Path, entry: dict) -> None:
-    items = [i for i in load_pending(me) if i["base"] != entry["base"]]
+    items = [i for i in load_pending(me) if not _same_job(i, entry)]
     save_pending(me, items + [entry])
 
 
@@ -70,7 +76,7 @@ def duplicates(me: Path, url: str, company: str, title: str, base: str) -> dict:
             res["applied"].append(r)
         elif same_co and title and difflib.SequenceMatcher(None, _norm_title(r["title"]), _norm_title(title)).ratio() > 0.85:
             res["similar"].append(r)
-    res["pending"] = [p for p in pending if p["base"] == base]
+    res["pending"] = [p for p in pending if base in (p.get("base"), p.get("page_base"))]
     return res
 
 
@@ -102,3 +108,7 @@ def record(me: Path, entry: dict, snapshot: str = "") -> dict:
         tracker.update(t, Path(tmp.name))
         Path(tmp.name).unlink(missing_ok=True)
     return row
+
+
+def drop_pending(me: Path, base: str) -> None:
+    save_pending(me, [p for p in load_pending(me) if base not in (p.get("base"), p.get("page_base"))])

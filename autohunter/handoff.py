@@ -175,6 +175,7 @@ def take(me: Path, url: str, title: str, main_py: Path) -> str:
     job_title = (row or {}).get("title") or re.sub(r"\s*[|–-]\s*[^|–-]*$", "", title or "").strip() or title
     job_title = re.sub(r"\s+in\s+[A-Z][\w .,'-]+$", "", job_title)  # "… Intern in San Francisco, California"
 
+    refill = False
     # duplicate check (applied log, pending fills, queue, similar titles at the same company)
     dup = duplicates(me, url, company, job_title, base)
     queued = [q for q in load_queue(me) if q["base"] == base and q["state"] in ("queued", "running")]
@@ -182,10 +183,23 @@ def take(me: Path, url: str, title: str, main_py: Path) -> str:
         r = dup["applied"][0]
         if ask(f"⚠️ 你 {r['applied_on']} 已经投过：\n{r['company']} · {r['title']}", ["取消", "仍然填"], "取消") != "仍然填":
             return "duplicate: applied"
-    elif dup["pending"] or queued:
-        if ask(f"这个岗位已经在准备了：\n{company} · {job_title}", ["取消", "打开那个标签页"], "打开那个标签页") == "打开那个标签页":
+    elif queued:
+        if ask(f"这个岗位正在准备：\n{company} · {job_title}", ["取消", "打开那个标签页"], "打开那个标签页") == "打开那个标签页":
             _focus_tab(base)
         return "duplicate: in progress"
+    elif dup["pending"]:
+        choice = ask(f"这个岗位已经填好、还没提交：\n{company} · {job_title}\n\n"
+                     f"提交失败或者页面过期了，可以选「重新填一遍」（不重新改简历，1–2 分钟）。",
+                     ["取消", "打开那个标签页", "重新填一遍"], "打开那个标签页")
+        if choice == "打开那个标签页":
+            _focus_tab(base)
+            return "duplicate: open tab"
+        if choice != "重新填一遍":
+            return "duplicate: pending"
+        from .apply.log import drop_pending
+        for p_ in dup["pending"]:
+            drop_pending(me, p_["base"])
+        refill = True
     elif dup["similar"]:
         r = dup["similar"][0]
         if ask(f"可能和你 {r['applied_on']} 投的是同一个岗位：\n{r['company']} · {r['title']}\n\n这次：{job_title}",
@@ -207,7 +221,7 @@ def take(me: Path, url: str, title: str, main_py: Path) -> str:
         notify("AutoHunter", msg)
         return msg
 
-    flags = red_flags(me, url, job_title)
+    flags = [] if refill else red_flags(me, url, job_title)
     if flags:
         tracker_note(trk, tid, "red flags: " + "; ".join(flags))
         if ask(f"{company} · {job_title}\n\n这个岗位可能不适合你：\n• " + "\n• ".join(flags) +
@@ -216,7 +230,7 @@ def take(me: Path, url: str, title: str, main_py: Path) -> str:
 
     items = load_queue(me)
     items.append({"base": base, "url": url, "tracker_id": tid, "company": company, "title": job_title,
-                  "added": datetime.now().isoformat(timespec="seconds"), "state": "queued"})
+                  "added": datetime.now().isoformat(timespec="seconds"), "state": "queued", "refill": refill})
     save_queue(me, items)
     ahead = sum(1 for q in items if q["state"] in ("queued", "running")) - 1
     notify("AutoHunter", f"⏳ 开始准备 {company} · {job_title}" + (f"（前面还有 {ahead} 个）" if ahead else ""))
@@ -287,6 +301,9 @@ URL: {url}
    `uv run main.py jd {tid}`: it falls back to the AutoHunter Chrome for sites that block
    scripts (403), so don't tailor from the title alone. If it still fails, say so in RESULT.
 2. Then run the /apply skill for {url}: always actually run `uv run main.py apply go "<url>"`
+   (for sites in me/output/manual_sites.json it automatically builds the manual-submit kit
+   instead; that counts as `RESULT: ok`). If it reports `needs_letter: true`, write the cover
+   letter (/tailor step 4, same folder) and run `uv run main.py apply fill --force "<url>"` again.
    (it drives a real Chrome, which works on sites that block plain HTTP). Never conclude a
    form can't be filled without running it. Duplicate check: the user already confirmed, so
    use --force if it reports a duplicate. Draft essays; personal facts you don't know stay unanswered
@@ -321,6 +338,9 @@ def work(me: Path, main_py: Path, budget_usd: float = 4.0) -> None:
             save_queue(me, items)
             print(f"[{job['started']}] {job['company']} | {job['title']}", flush=True)
             prompt = PROMPT.format(tid=job["tracker_id"], company=job["company"], title=job["title"], url=job["url"])
+            if job.get("refill"):
+                prompt += ("\nThis is a REFILL: the user's earlier submit failed or the page expired. The resume is "
+                           "already tailored: skip /tailor and run `uv run main.py apply go --force \"<url>\"` straight away.\n")
             cmd = [_claude(), "-p", prompt, "--permission-mode", "acceptEdits",
                    "--max-budget-usd", str(job.get("budget") or budget_usd),
                    "--allowedTools", "Bash(uv run main.py:*)", "Bash(uv run main.py *)", "Read", "Write", "Edit",

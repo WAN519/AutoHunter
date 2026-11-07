@@ -107,7 +107,11 @@ Docker 和 CI 经历里很可能用过".
 - `warning` says it's over the page limit → add more `drop_texts` and render again.
 - Then dump the result with `--resume "<output>"` and reread it once: does it still read naturally?
 
-## 4. Cover letter (only if the JD asks for one, or the user does)
+## 4. Cover letter (if the JD asks for one, the user does, or the application form has a cover-letter field)
+
+Write one when the JD asks for it, when the user asks, or when `/apply` reports `needs_letter: true` (the form
+has a cover-letter upload or text box, required or optional; each user can turn the optional case off
+with `"cover_letter": "required"` in me/config.json → "apply"; default `"required_or_field"`).
 
 Write `letter.json` → `uv run main.py letter "<folder>/letter.json" "<folder>/Cover Letter <Name> - <Company>.docx"`.
 Keys: `name`, `contact_line`, `date`, `greeting`, `opener`, `body_paragraphs`, `closer`, `signoff`.
