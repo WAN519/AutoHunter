@@ -32,6 +32,26 @@
 每个申请页右上角有面板，写着简历改了什么、哪些答案是 Claude 写的草稿、哪些项还需要你自己处理。
 你检查完点 Submit，后台会自动截图，记进 `me/output/applied.csv`，同时同步到你的 Google 表格。
 
+## 每个岗位会准备什么
+
+一个岗位跑完 `/tailor`（快捷键和每日自动运行也会跑），`me/applications/<日期> <公司> - <职位>/` 里会有：
+
+| 文件 | 内容 |
+|---|---|
+| `CV <你的名字> - <公司>.docx` / `.pdf` | 按这个 JD 改过的简历（一页，投 QA 岗等例外看你的偏好），上传用 PDF |
+| `Cover Letter <你的名字> - <公司>.docx` / `.pdf` | **Cover letter**：JD 要求时写；申请表里有 cover letter 栏（上传框或文本框，必填或选填）时也会写，填表时自动上传或粘贴。只用你简历上的事实，按你认可的范例信的结构和语气写。只想必填时才写的话，在设置里改成 `"cover_letter": "required"` |
+| `contacts.md` | **联系人**：Google 搜索链接，帮你在 LinkedIn 上找这家公司的招聘官、ML/工程负责人和你们学校的校友（链接要你自己点开，程序不登录也不抓取 LinkedIn），外加一条写好的 LinkedIn 好友申请留言（300 字符以内）和一封冷邮件草稿 |
+| `notes.md` | 匹配度、简历每处修改的前后对比、你和 JD 的差距、投之前要确认的事（截止日期、开始时间、签证要求等） |
+| `summary.json` | 简历改了什么、cover letter 写了哪几点，各一句话，会显示在填表面板、今日清单和 Google 表格里 |
+| `jd.txt`、`plan.json`、`form.json` | 职位描述原文、改简历的计划、填表时用的答案（重新填一遍时会复用） |
+
+另外：
+- `me/output/contacts.csv`：每次 `hunt` 后，所有出现过的公司的联系人搜索链接汇总在这里
+- `me/applications/outreach/`：`/outreach` 写的冷邮件（给没挂岗位的公司，例如问兼职 CPT）
+- `me/output/leads.csv`：`uv run main.py leads` 从 Hacker News 招聘帖里整理出来的兼职 / 实习线索
+
+所有邮件和留言都只是**草稿**，由你自己发，程序不会替你联系任何人。
+
 ## 支持哪些网站
 
 | 能自动填 | 说明 |
@@ -63,8 +83,10 @@ me/                       你的私人文件夹（不进 git）
   resume_style.md         你的简历偏好（自动学习，你也可以直接改）
   experience.json         结构化的工作经历和学历（Workday 填表用）
   answers.json            常见问题的默认答案 + 你回答过的问题
-  applications/<岗位>/    这个岗位的定制简历、cover letter、改动说明、联系人
-  output/                 tracker.csv（所有岗位）、applied.csv（投过的）、今日清单等
+  applications/<岗位>/    这个岗位的定制简历、cover letter、联系人（contacts.md）、改动说明（见上面「每个岗位会准备什么」）
+  applications/outreach/  冷邮件草稿
+  output/                 tracker.csv（所有岗位）、applied.csv（投过的）、contacts.csv（联系人搜索链接）、
+                          leads.csv（兼职 / 实习线索）、today.html（今日清单）
 ```
 
 ## 常用命令
