@@ -1,0 +1,91 @@
+{
+  "_comment": "Copy to me/config.json (the /setup skill does this for you). Everything in me/ is private and never committed.",
+  "name": "Jane Doe",
+  "school": "Northeastern University",
+  "degree": "masters",
+  "work_authorization": "F-1, CPT for internships",
+  "roles": [
+    "data-science",
+    "machine-learning"
+  ],
+  "extra_topics": {
+    "my-niche": [
+      "recommendation",
+      "time series"
+    ]
+  },
+  "exclude_title_keywords": [],
+  "employment": "full-time",
+  "terms_best": [
+    "spring 2027",
+    "winter 2027",
+    "january 2027",
+    "co-op",
+    "off-cycle",
+    "rolling"
+  ],
+  "terms_ok": [
+    "summer 2027",
+    "2027"
+  ],
+  "terms_bad": [
+    "summer 2026",
+    "fall 2026",
+    "winter 2026",
+    "spring 2026"
+  ],
+  "locations_ok": [
+    "united states",
+    "usa",
+    "remote",
+    "north america",
+    "americas",
+    "seattle",
+    "san francisco",
+    "new york",
+    "boston",
+    "bellevue"
+  ],
+  "home_city": "boston",
+  "prefer_remote": true,
+  "skip_flags": [
+    "us-citizen-only",
+    "closed"
+  ],
+  "flag_only": [
+    "no-sponsorship",
+    "advanced-degree"
+  ],
+  "company_tags": [],
+  "simplify_lists": [
+    "off-season",
+    "summer"
+  ],
+  "fit_threshold": 70,
+  "apply": {
+    "_comment": "Filled by `main.py settings` (the password never goes here: it's in the macOS Keychain).",
+    "first_name": "Jane",
+    "last_name": "Doe",
+    "email": "jane.doe@example.edu",
+    "phone": "(555) 123-4567",
+    "city": "Boston",
+    "state": "MA",
+    "country": "United States",
+    "linkedin": "https://www.linkedin.com/in/janedoe/",
+    "github": "https://github.com/janedoe",
+    "school": "Northeastern University",
+    "degree": "masters",
+    "major": "Data Science",
+    "graduation_intern": "Dec 2027",
+    "graduation_ng": "May 2027",
+    "years_experience": 2,
+    "workday_email": "jane.doe.jobs@gmail.com",
+    "workday_same": false,
+    "hotkey": "⌥Space",
+    "cutoff": "23:00",
+    "fill_time": "08:00",
+    "daily_cap": 5,
+    "daily_budget_usd": 10,
+    "panel": "collapsed"
+  }
+}

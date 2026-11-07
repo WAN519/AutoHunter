@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>AutoHunter 设置</title>
+<style>
+  body { font: 14px/1.5 -apple-system, "PingFang SC", "Segoe UI", sans-serif; background: #f5f5f7; color: #1d1d1f; margin: 0; }
+  main { max-width: 680px; margin: 32px auto; padding: 0 16px 48px; }
+  h1 { font-size: 22px; margin: 0 0 4px; } .sub { color: #6e6e73; margin-bottom: 20px; }
+  section { background: #fff; border-radius: 12px; padding: 16px 20px; margin-bottom: 14px; }
+  h2 { font-size: 15px; margin: 0 0 10px; }
+  .row { display: grid; grid-template-columns: 190px 1fr; gap: 10px; align-items: center; margin: 8px 0; }
+  .row.two { grid-template-columns: 190px 1fr 1fr; }
+  label.k { color: #424245; } .req::after { content: " *"; color: #d70015; }
+  input[type=text], input[type=email], input[type=tel], input[type=url], input[type=password], input[type=time], input[type=number], select {
+    width: 100%; box-sizing: border-box; padding: 7px 9px; border: 1px solid #d2d2d7; border-radius: 8px; font: inherit; background: #fff; }
+  input:focus, select:focus { outline: 2px solid #0071e3; border-color: transparent; }
+  .hint { color: #6e6e73; font-size: 12px; grid-column: 2 / -1; margin-top: -4px; }
+  .ok { color: #1a7f37; } .bad { color: #d70015; }
+  button { font: inherit; border: 0; border-radius: 8px; padding: 7px 14px; cursor: pointer; }
+  .gen { background: #e8e8ed; } .save { background: #0071e3; color: #fff; padding: 10px 28px; font-size: 15px; }
+  .bar { display: flex; justify-content: flex-end; gap: 12px; align-items: center; }
+  #hotkey { cursor: pointer; text-align: center; }
+  .done { text-align: center; padding: 60px 0; font-size: 17px; }
+</style>
+</head>
+<body>
+<main id="app">
+  <h1>AutoHunter 初始设置</h1>
+  <div class="sub">只在这台电脑上保存。密码存进 macOS 钥匙串，不写进任何文件。以后可以运行 <code>python3 main.py settings</code> 再改。</div>
+
+  <section>
+    <h2>基本信息（填进申请表）</h2>
+    <div class="row two"><label class="k req">姓名</label><input id="first_name" type="text" placeholder="First name"><input id="last_name" type="text" placeholder="Last name"></div>
+    <div class="row"><label class="k">常用英文名</label><input id="preferred_name" type="text" placeholder="可留空"></div>
+    <div class="row"><label class="k req">申请表联系邮箱</label><input id="email" type="email"></div>
+    <div class="hint">招聘方会用这个邮箱联系你。</div>
+    <div class="row"><label class="k req">电话</label><input id="phone" type="tel"></div>
+    <div class="row two"><label class="k req">所在城市 / 州</label><input id="city" type="text" placeholder="Seattle"><input id="state" type="text" placeholder="WA"></div>
+    <div class="row"><label class="k">国家</label><input id="country" type="text"></div>
+    <div class="row"><label class="k">LinkedIn</label><input id="linkedin" type="url"></div>
+    <div class="row"><label class="k">GitHub</label><input id="github" type="url"></div>
+    <div class="row"><label class="k">个人网站</label><input id="website" type="url" placeholder="可留空"></div>
+  </section>
+
+  <section>
+    <h2>学历</h2>
+    <div class="row"><label class="k">学校</label><input id="school" type="text"></div>
+    <div class="row two"><label class="k">学位 / 专业</label>
+      <select id="degree"><option value="bachelors">Bachelor's</option><option value="masters">Master's</option><option value="phd">PhD</option></select>
+      <input id="major" type="text" placeholder="Data Analytics Engineering"></div>
+    <div class="row"><label class="k">全职工作经验（年）</label><input id="years_experience" type="number" min="0" max="40" step="0.5"></div>
+    <div class="hint">用来提前识别“最多 2 年经验”这类你不符合的岗位。</div>
+    <div class="row two"><label class="k">毕业时间：投实习 / 投 NG</label><input id="graduation_intern" type="text" placeholder="Dec 2027"><input id="graduation_ng" type="text" placeholder="May 2027"></div>
+    <div class="hint">投实习填的毕业时间可以晚一些（比如拿到实习 offer 就延毕）；投 New Grad 填正常毕业时间。</div>
+  </section>
+
+  <section>
+    <h2>账号</h2>
+    <div class="row"><label class="k">Workday 账号邮箱</label><label><input id="workday_same" type="checkbox"> 和联系邮箱一样</label></div>
+    <div class="row" id="wd_row"><label class="k"></label><input id="workday_email" type="email" placeholder="比如专门找工作用的邮箱"></div>
+    <div class="row"><label class="k">Workday 密码</label><input id="workday_password" type="password" autocomplete="new-password"></div>
+    <div class="row"><label class="k">再输入一次</label><input id="workday_password2" type="password" autocomplete="new-password"></div>
+    <div class="row"><label class="k"></label><div><button class="gen" id="gen" type="button">🔑 帮我生成一个强密码</button> <span id="pwmsg" class="hint"></span></div></div>
+    <div class="hint" id="pwrule">至少 8 位，包含大写、小写、数字和符号（Workday 的要求）。</div>
+    <div class="row"><label class="k">Google 登录账号</label><input id="google_account" type="email" placeholder="可选：支持 “Sign in with Google” 的公司用它"></div>
+  </section>
+
+  <section>
+    <h2>常见问题的默认答案</h2>
+    <div class="row"><label class="k">能合法在美国工作？</label><select data-a="authorized_us"><option>Yes</option><option>No</option></select></div>
+    <div class="row"><label class="k">现在需要 sponsorship？</label><select data-a="sponsorship_now"><option>No</option><option>Yes</option></select></div>
+    <div class="row"><label class="k">将来需要 sponsorship？</label><select data-a="sponsorship_future"><option>Yes</option><option>No</option></select></div>
+    <div class="hint">F-1 学生用 CPT 实习：通常“现在 No / 将来 Yes”（以后 H-1B）。不确定请问 OISS。</div>
+    <div class="row"><label class="k">最早开始日期</label><input data-a="available_start" type="text" placeholder="January 4, 2027"></div>
+    <div class="row"><label class="k">How did you hear</label><input data-a="how_heard" type="text"></div>
+    <div class="row"><label class="k">以前在这家公司工作过？</label><select data-a="previously_employed"><option>No</option><option>Yes</option></select></div>
+    <div class="row"><label class="k">Gender</label><select data-a="gender"><option>Decline to self-identify</option><option>Female</option><option>Male</option><option>Non-binary</option></select></div>
+    <div class="row"><label class="k">Race / Ethnicity</label><select data-a="race"><option>Decline to self-identify</option><option>Asian</option><option>Black or African American</option><option>Hispanic or Latino</option><option>White</option><option>Two or more races</option></select></div>
+    <div class="row"><label class="k">Hispanic / Latino?</label><select data-a="hispanic"><option>Decline to self-identify</option><option>No</option><option>Yes</option></select></div>
+    <div class="row"><label class="k">Veteran</label><select data-a="veteran"><option>I don't wish to answer</option><option>I am not a protected veteran</option></select></div>
+    <div class="row"><label class="k">Disability</label><select data-a="disability"><option>I don't wish to answer</option><option>No, I do not have a disability</option><option>Yes, I have a disability</option></select></div>
+  </section>
+
+  <section>
+    <h2>每天自动运行</h2>
+    <div class="row"><label class="k">交岗位快捷键</label><input id="hotkey" type="text" readonly title="点一下，然后按你想要的组合"></div>
+    <div class="hint">点上面的框，按下想要的组合。⌥Space 可能和 Raycast / ChatGPT / Alfred 冲突。</div>
+    <div class="row"><label class="k">晚上截止时间</label><input id="cutoff" type="time"></div>
+    <div class="row"><label class="k">早上开始填表</label><input id="fill_time" type="time"></div>
+    <div class="row"><label class="k">每天默认投几个</label><input id="daily_cap" type="number" min="1" max="30"></div>
+    <div class="row"><label class="k">每天 Claude 花费上限（$）</label><input id="daily_budget_usd" type="number" min="1" max="100" step="1"></div>
+    <div class="hint">每天自动运行（打分 + 改简历 + 填表）的总上限，大约每个岗位 $1–2。</div>
+    <div class="row"><label class="k">申请页面板默认</label><select id="panel"><option value="collapsed">收起（笔记本屏幕）</option><option value="expanded">展开（有外接屏）</option></select></div>
+  </section>
+
+  <div class="bar"><span id="msg" class="bad"></span><button class="save" id="save" type="button">保存</button></div>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+const FIELDS = ["first_name","last_name","preferred_name","email","phone","city","state","country","linkedin","github","website",
+                "school","degree","major","years_experience","graduation_intern","graduation_ng","workday_email","google_account","hotkey","cutoff","fill_time","daily_cap","daily_budget_usd","panel"];
+const REQ = ["first_name","last_name","email","phone","city"];
+let hasPassword = false;
+
+fetch("/data").then(r => r.json()).then(d => {
+  FIELDS.forEach(k => { if (d[k] !== undefined && $(k)) $(k).value = d[k]; });
+  $("workday_same").checked = d.workday_same !== false;
+  document.querySelectorAll("[data-a]").forEach(e => { if (d.answers[e.dataset.a] !== undefined) e.value = d.answers[e.dataset.a]; });
+  hasPassword = d.has_password;
+  if (hasPassword) $("pwmsg").textContent = "钥匙串里已有密码；留空就保持不变。";
+  if (!d.is_mac) $("pwmsg").textContent = "这台电脑不是 macOS：密码暂时不会保存。";
+  syncSame();
+});
+
+function syncSame() { $("wd_row").style.display = $("workday_same").checked ? "none" : ""; }
+$("workday_same").onchange = syncSame;
+
+function strong(p) { return p.length >= 8 && /[A-Z]/.test(p) && /[a-z]/.test(p) && /\d/.test(p) && /[^A-Za-z0-9]/.test(p); }
+function checkPw() {
+  const p = $("workday_password").value, q = $("workday_password2").value;
+  if (!p && !q) { $("pwrule").className = "hint"; return true; }
+  const ok = strong(p) && p === q;
+  $("pwrule").className = "hint " + (ok ? "ok" : "bad");
+  $("pwrule").textContent = !strong(p) ? "至少 8 位，包含大写、小写、数字和符号。" : p !== q ? "两次输入不一样。" : "✓ 符合 Workday 要求";
+  return ok;
+}
+$("workday_password").oninput = $("workday_password2").oninput = checkPw;
+
+$("gen").onclick = () => {
+  const sets = ["ABCDEFGHJKLMNPQRSTUVWXYZ", "abcdefghijkmnopqrstuvwxyz", "23456789", "!@#$%^&*-_+="];
+  const all = sets.join(""), rnd = n => crypto.getRandomValues(new Uint32Array(1))[0] % n;
+  let pw = sets.map(s => s[rnd(s.length)]);
+  while (pw.length < 18) pw.push(all[rnd(all.length)]);
+  pw = pw.sort(() => rnd(3) - 1).join("");
+  $("workday_password").value = $("workday_password2").value = pw;
+  $("workday_password").type = "text";
+  $("pwmsg").textContent = "已生成。保存后存进钥匙串，你不用记。";
+  checkPw();
+};
+
+$("hotkey").onkeydown = e => {
+  e.preventDefault();
+  if (["Meta","Alt","Control","Shift"].includes(e.key)) return;
+  const mods = (e.ctrlKey ? "⌃" : "") + (e.altKey ? "⌥" : "") + (e.shiftKey ? "⇧" : "") + (e.metaKey ? "⌘" : "");
+  if (!mods) return;
+  const key = e.code === "Space" ? "Space" : e.code.replace(/^Key|^Digit/, "");
+  $("hotkey").value = mods + key;
+};
+
+$("save").onclick = async () => {
+  const miss = REQ.filter(k => !$(k).value.trim());
+  REQ.forEach(k => $(k).style.borderColor = miss.includes(k) ? "#d70015" : "");
+  if (miss.length) { $("msg").textContent = "带 * 的还没填"; return; }
+  if (!checkPw()) { $("msg").textContent = "密码不符合要求"; return; }
+  if (!hasPassword && !$("workday_password").value) {
+    if (!confirm("还没设 Workday 密码。先不设，以后再补？")) return;
+  }
+  const body = {}; FIELDS.forEach(k => body[k] = $(k).value.trim());
+  body.daily_cap = parseInt(body.daily_cap || "8", 10);
+  body.workday_same = $("workday_same").checked;
+  body.workday_password = $("workday_password").value;
+  body.answers = {}; document.querySelectorAll("[data-a]").forEach(e => body.answers[e.dataset.a] = e.value.trim());
+  const r = await fetch("/save", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)}).then(r => r.json());
+  $("app").innerHTML = `<div class="done">✅ 已保存${r.password === "saved" ? "，密码已存进钥匙串" : r.password === "failed" ? "<br><span class='bad'>但密码没能存进钥匙串，请再试一次</span>" : ""}<br><span class="sub">可以关掉这个页面了。</span></div>`;
+};
+</script>
+</body>
+</html>

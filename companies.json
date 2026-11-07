@@ -1,0 +1,398 @@
+{
+  "_comment": "Shared list of public job boards. Token = slug in the careers URL (boards.greenhouse.io/<token>, jobs.lever.co/<token>, jobs.ashbyhq.com/<token>; Workday: <tenant>.<wdN>/<site> from <tenant>.<wdN>.myworkdayjobs.com/<site>). Tags: ai, ml-infra, data, fintech, devtools, nonprofit, seattle. SmartRecruiters: company id from jobs.smartrecruiters.com/<id>. hn: the monthly Who-is-hiring thread. Add boards via PR.",
+  "greenhouse": {
+    "anthropic": [
+      "ai"
+    ],
+    "databricks": [
+      "ai",
+      "data",
+      "ml-infra"
+    ],
+    "scaleai": [
+      "ai",
+      "data"
+    ],
+    "togetherai": [
+      "ai",
+      "ml-infra"
+    ],
+    "coreweave": [
+      "ml-infra"
+    ],
+    "snorkelai": [
+      "ai",
+      "data"
+    ],
+    "sambanovasystems": [
+      "ai",
+      "ml-infra"
+    ],
+    "labelbox": [
+      "ai",
+      "data"
+    ],
+    "hive": [
+      "ai"
+    ],
+    "datadog": [
+      "devtools",
+      "data"
+    ],
+    "mongodb": [
+      "data",
+      "devtools"
+    ],
+    "cloudflare": [
+      "devtools",
+      "ml-infra"
+    ],
+    "xai": [
+      "ai"
+    ],
+    "samsara": [
+      "data"
+    ],
+    "robinhood": [
+      "fintech",
+      "data"
+    ],
+    "figma": [
+      "devtools"
+    ],
+    "stabilityai": [
+      "ai"
+    ],
+    "vilya": [
+      "ai",
+      "seattle"
+    ],
+    "smartsheet": [
+      "data",
+      "seattle"
+    ],
+    "dropbox": [
+      "devtools"
+    ],
+    "pinterest": [
+      "data"
+    ],
+    "twilio": [
+      "devtools"
+    ],
+    "pathai": [
+      "ai"
+    ],
+    "nuro": [
+      "ai"
+    ],
+    "imbue": [
+      "ai"
+    ],
+    "arizeai": [
+      "ai",
+      "ml-infra"
+    ],
+    "galileo": [
+      "ai"
+    ],
+    "thealleninstitute": [
+      "ai",
+      "nonprofit",
+      "seattle"
+    ],
+    "wikimedia": [
+      "nonprofit"
+    ],
+    "khanacademy": [
+      "nonprofit"
+    ],
+    "mozilla": [
+      "nonprofit"
+    ],
+    "codeforamerica": [
+      "nonprofit"
+    ]
+  },
+  "lever": {
+    "palantir": [
+      "data"
+    ],
+    "zoox": [
+      "ai"
+    ]
+  },
+  "ashby": {
+    "openai": [
+      "ai"
+    ],
+    "cohere": [
+      "ai"
+    ],
+    "modal": [
+      "ml-infra"
+    ],
+    "baseten": [
+      "ml-infra"
+    ],
+    "perplexity": [
+      "ai"
+    ],
+    "langchain": [
+      "ai"
+    ],
+    "llamaindex": [
+      "ai"
+    ],
+    "pinecone": [
+      "ai",
+      "data"
+    ],
+    "weaviate": [
+      "ai",
+      "data"
+    ],
+    "anyscale": [
+      "ml-infra"
+    ],
+    "runway": [
+      "ai"
+    ],
+    "elevenlabs": [
+      "ai"
+    ],
+    "notion": [
+      "devtools"
+    ],
+    "ramp": [
+      "fintech",
+      "data"
+    ],
+    "deepgram": [
+      "ai"
+    ],
+    "sierra": [
+      "ai"
+    ],
+    "harvey": [
+      "ai"
+    ],
+    "cursor": [
+      "ai",
+      "devtools"
+    ],
+    "lambda": [
+      "ml-infra"
+    ],
+    "crusoe": [
+      "ml-infra"
+    ],
+    "lancedb": [
+      "data"
+    ],
+    "braintrust": [
+      "ai"
+    ],
+    "patronus": [
+      "ai"
+    ],
+    "writer": [
+      "ai"
+    ],
+    "cartesia": [
+      "ai"
+    ],
+    "supabase": [
+      "devtools",
+      "data"
+    ],
+    "snowflake": [
+      "data"
+    ],
+    "benchling": [
+      "data"
+    ],
+    "unstructured": [
+      "ai",
+      "data"
+    ]
+  },
+  "workday": {
+    "nvidia.wd5/NVIDIAExternalCareerSite": [
+      "ai",
+      "ml-infra"
+    ],
+    "salesforce.wd12/External_Career_Site": [
+      "ai"
+    ],
+    "adobe.wd5/external_experienced": [
+      "ai"
+    ],
+    "intel.wd1/External": [
+      "ml-infra"
+    ],
+    "zillow.wd5/Zillow_Group_External": [
+      "seattle",
+      "data"
+    ],
+    "generalmotors.wd5/Careers_GM": [
+      "ai"
+    ],
+    "amfam.wd1/AmFamGroupInternCareers": [
+      "data"
+    ],
+    "capitalone.wd12/Capital_One": [
+      "fintech",
+      "data"
+    ],
+    "workday.wd5/Workday": [
+      "ai"
+    ],
+    "hp.wd5/ExternalCareerSite": [
+      "ml-infra"
+    ],
+    "autodesk.wd1/Ext": [
+      "ai"
+    ],
+    "mastercard.wd1/CorporateCareers": [
+      "fintech",
+      "data"
+    ],
+    "target.wd5/targetcareers": [
+      "data"
+    ],
+    "boeing.wd1/EXTERNAL_CAREERS": [
+      "seattle"
+    ],
+    "pfizer.wd1/PfizerCareers": [
+      "data"
+    ],
+    "disney.wd5/disneycareer": [
+      "data"
+    ],
+    "3m.wd1/Search": [
+      "data"
+    ],
+    "paypal.wd1/jobs": [
+      "fintech"
+    ],
+    "broadcom.wd1/External_Career": [
+      "ml-infra"
+    ],
+    "micron.wd1/External": [
+      "ml-infra"
+    ],
+    "analogdevices.wd1/External": [
+      "ml-infra"
+    ],
+    "motorolasolutions.wd5/Careers": [
+      "ai"
+    ],
+    "tmobile.wd1/External": [
+      "seattle",
+      "data"
+    ],
+    "ebay.wd5/apply": [
+      "data"
+    ],
+    "cvshealth.wd1/CVS_Health_Careers": [
+      "data"
+    ],
+    "thomsonreuters.wd5/External_Career_Site": [
+      "ai"
+    ],
+    "kla.wd1/Search": [
+      "ml-infra"
+    ],
+    "nike.wd1/nke": [
+      "data"
+    ],
+    "medtronic.wd1/MedtronicCareers": [
+      "data"
+    ],
+    "philips.wd3/jobs-and-careers": [
+      "data"
+    ]
+  },
+  "smartrecruiters": {
+    "ServiceNow": [
+      "ai"
+    ],
+    "WesternDigital": [
+      "ml-infra"
+    ],
+    "BoschGroup": [
+      "ai"
+    ],
+    "Experian": [
+      "data"
+    ],
+    "NielsenIQ": [
+      "data"
+    ]
+  },
+  "hn": {
+    "whoishiring": [
+      "ai",
+      "ml-infra",
+      "devtools"
+    ]
+  },
+  "display_names": {
+    "scaleai": "Scale AI",
+    "togetherai": "Together AI",
+    "snorkelai": "Snorkel AI",
+    "sambanovasystems": "SambaNova",
+    "xai": "xAI",
+    "stabilityai": "Stability AI",
+    "khanacademy": "Khan Academy",
+    "codeforamerica": "Code for America",
+    "elevenlabs": "ElevenLabs",
+    "llamaindex": "LlamaIndex",
+    "langchain": "LangChain",
+    "lancedb": "LanceDB",
+    "openai": "OpenAI",
+    "coreweave": "CoreWeave",
+    "mongodb": "MongoDB",
+    "lambda": "Lambda Labs",
+    "cursor": "Anysphere",
+    "thealleninstitute": "Allen Institute for AI",
+    "arizeai": "Arize AI",
+    "pathai": "PathAI",
+    "nvidia": "NVIDIA",
+    "salesforce": "Salesforce",
+    "adobe": "Adobe",
+    "intel": "Intel",
+    "zillow": "Zillow",
+    "generalmotors": "General Motors",
+    "amfam": "American Family Insurance",
+    "capitalone": "Capital One",
+    "workday": "Workday",
+    "hp": "HP",
+    "autodesk": "Autodesk",
+    "mastercard": "Mastercard",
+    "target": "Target",
+    "boeing": "Boeing",
+    "pfizer": "Pfizer",
+    "disney": "Disney",
+    "3m": "3M",
+    "paypal": "PayPal",
+    "broadcom": "Broadcom",
+    "micron": "Micron",
+    "analogdevices": "Analog Devices",
+    "motorolasolutions": "Motorola Solutions",
+    "tmobile": "T-Mobile",
+    "ebay": "eBay",
+    "cvshealth": "CVS Health",
+    "thomsonreuters": "Thomson Reuters",
+    "kla": "KLA",
+    "nike": "Nike",
+    "medtronic": "Medtronic",
+    "philips": "Philips",
+    "ServiceNow": "ServiceNow",
+    "WesternDigital": "Western Digital",
+    "BoschGroup": "Bosch",
+    "Experian": "Experian",
+    "NielsenIQ": "NielsenIQ"
+  }
+}

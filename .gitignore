@@ -1,0 +1,22 @@
+# Personal data: never commit
+me/
+*.docx
+*.pdf
+
+# Local code backups
+_backup_*/
+
+# Python / tooling
+.venv/
+__pycache__/
+*.pyc
+*.tmp
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Claude Code per-user settings (shared skills in .claude/skills/ are tracked)
+.claude/settings.local.json
