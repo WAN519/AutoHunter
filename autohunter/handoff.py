@@ -260,7 +260,12 @@ def red_flags(me: Path, url: str, title: str) -> list[str]:
     if m and mine:
         n = int(m.group(1)) / (12 if m.group(2).startswith("month") else 1)
         flags.append(f"经验上限：最多 {m.group(1)} {m.group(2)}（你有 {mine:g} 年）" if n < mine else "")
-    if re.search(r"currently (pursuing|enrolled in) an? (bachelor|undergraduate)", when) and not re.search(r"master|graduate degree|m\.s\.|ms ", when):
+    undergrad_only = re.search(r"(currently|actively) (pursuing|enrolled in) an? (bachelor|undergraduate)|"
+                               r"enrolled in an? bachelor|designed for (actively enrolled |current )?undergraduate", when)
+    # Whole words only: a bare "ms " also matches "systems ", which used to cancel this flag.
+    grad_ok = re.search(r"\bmaster|\bgraduate (degree|student|program)|\bm\.s\.|\bms (degree|student|in\b)|"
+                        r"\bph\.?d|\bmba\b", when)
+    if undergrad_only and not grad_ok:
         flags.append("只招本科生（你在读硕士）")
     if re.search(r"(u\.s\.|us) citizen(ship)? (is )?required|must be a u\.s\. citizen|security clearance", when):
         flags.append("要求美国公民 / 安全许可")

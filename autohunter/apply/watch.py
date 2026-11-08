@@ -23,6 +23,40 @@ FAILED_RE = re.compile(r"something went wrong|submission failed|failed to submit
                        r"an error occurred|unable to (submit|process)|application could not be", re.I)
 MAX_HOURS = 12
 
+# Workday keep-alive. Its session times out after ~15-30 idle minutes and the half-filled
+# application is wiped. While a Workday form waits for review we (a) nudge the mouse every few
+# minutes, which counts as activity, and (b) click "Continue" on the timeout warning. This can't
+# beat a hard session limit, which is why Workday forms are filled on demand (daily.py).
+KEEPALIVE_EVERY = 240
+TIMEOUT_WARN_RE = re.compile(r"session (is about to|will soon|will) (expire|time ?out)|about to (expire|time ?out)|"
+                             r"due to inactivity|are you still (there|working)", re.I)
+EXTEND_BTN_RE = re.compile(r"^\s*(continue|extend( session)?|stay (signed|logged) in|keep (me )?(signed|logged) in|"
+                           r"i'?m still here|keep working)\s*$", re.I)
+DIALOG_BUTTONS = "[role=dialog] button, [role=alertdialog] button, [data-automation-id*=opup] button"
+
+
+def keep_alive(page, entry: dict, body: str, last: dict) -> None:
+    """Keep a waiting Workday session from expiring. Never clicks anything except the
+    session-timeout dialog's own continue button; never types."""
+    if entry.get("platform") != "workday":
+        return
+    if TIMEOUT_WARN_RE.search(body):
+        for btn in page.locator(DIALOG_BUTTONS).all():  # only inside the warning dialog, never the form
+            try:
+                if btn.is_visible() and EXTEND_BTN_RE.match(btn.inner_text(timeout=1000) or ""):
+                    btn.click(timeout=3000)
+                    print(f"kept session alive (dialog) {entry.get('company')}", flush=True)
+                    break
+            except Exception:
+                continue
+    if time.time() - last.get(entry["base"], 0) > KEEPALIVE_EVERY:
+        try:  # a tiny pointer move in the page margin: activity without touching any field
+            page.mouse.move(3, 200)
+            page.mouse.move(4, 201)
+            last[entry["base"]] = time.time()
+        except Exception:
+            pass
+
 
 def notify(title: str, text: str) -> None:
     if platform.system() == "Darwin":
@@ -56,7 +90,7 @@ def run(me: Path) -> None:
     from .browser import connect
 
     _pidfile(me).write_text(str(os.getpid()))
-    started, last_shot = time.time(), {}
+    started, last_shot, last_nudge = time.time(), {}, {}
     try:
         with connect() as (_, browser, context):
             while time.time() - started < MAX_HOURS * 3600:
@@ -93,9 +127,13 @@ def run(me: Path) -> None:
                         if FAILED_RE.search(body) and not entry.get("failed_notified"):
                             entry["failed_notified"] = True
                             log.save_pending(me, [entry if log._same_job(p_, entry) else p_ for p_ in log.load_pending(me)])
-                            notify("AutoHunter：提交好像失败了",
-                                   f"{entry.get('company', '')}：在岗位页面按快捷键，选「重新填一遍」，1–2 分钟就能重来")
+                            notify("AutoHunter：页面过期或提交失败",
+                                   f"{entry.get('company', '')}：在今日清单点「重新填一遍」（或在岗位页按快捷键），1–2 分钟就能重来")
                             print(f"submit failed? {entry.get('company')}", flush=True)
+                        try:
+                            keep_alive(page, entry, body, last_nudge)
+                        except Exception:
+                            pass
                         try:  # panel gone after a reload / next step: put it back
                             if not page.evaluate("!!document.getElementById('autohunter-panel')") and entry.get("panel"):
                                 inject_panel(page, entry["panel"])

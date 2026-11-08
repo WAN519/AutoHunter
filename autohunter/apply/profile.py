@@ -85,6 +85,12 @@ class Profile:
             return c.get("graduation_ng") or c.get("graduation", "")
         return c.get("graduation_intern") or c.get("graduation", "")
 
+    def graduation_day(self) -> str:
+        """Graduation as an exact MM/DD/YYYY, for fields that want a day. Uses the
+        graduation_intern_date / graduation_ng_date setting; falls back to the month setting."""
+        key = "graduation_ng_date" if self.job_kind == "ng" else "graduation_intern_date"
+        return self.c.get(key) or self.graduation()
+
     def _location(self) -> str:
         return ", ".join(x for x in (self.c.get("city"), self.c.get("state")) if x)
 
@@ -224,8 +230,24 @@ class Profile:
         if re.search(r"graduat|completion date|expected (grad|completion)", label) and not re.search(r"high school", label):
             g = self.graduation()
             year = (re.findall(r"20\d\d", g) or [""])[0]
-            if re.search(r"\byear\b", label):
+            if re.search(r"\byear\b", label) and not re.search(r"\bdate\b|\bday\b|mm/dd|dd/mm|month", label):
                 return val([year, g] if choice else year)
+            # A field that wants a day (date input, calendar picker, "date" / "MM/DD" in the
+            # label) gets the exact day; month-only fields keep "Dec 2027".
+            wants_day = kind == "date" or (not choice and re.search(r"\bdate\b|\bday\b|mm/dd|dd/mm", label)
+                                            and not re.search(r"month|mm/yy", label))
+            if wants_day:
+                day = self.graduation_day()
+                if kind == "date":  # <input type=date> only accepts YYYY-MM-DD
+                    from datetime import datetime as _dt
+                    # month-only fallback ("May 2027") becomes the 1st of that month
+                    for fmt in ("%m/%d/%Y", "%Y-%m-%d", "%b %d, %Y", "%B %d, %Y", "%b %Y", "%B %Y"):
+                        try:
+                            day = _dt.strptime(day, fmt).strftime("%Y-%m-%d")
+                            break
+                        except ValueError:
+                            continue
+                return val(day)
             return val([g, year] if choice else g)
         if re.search(r"school|university|college|institution", label) and not re.search(r"high school", label):
             return val([c.get("school", "")] if choice else c.get("school"))

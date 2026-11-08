@@ -28,6 +28,13 @@ ROLE_PRESETS: dict[str, list[str]] = {
     "software-engineer": [
         "software engineer", "backend", "full stack", "full-stack", "swe", "developer",
     ],
+    # Not "assistant" (research / teaching assistant) or "autonomous" (self-driving).
+    "ai-agents": [
+        "agent", "agents", "agentic", "multi-agent", "ai agent", "ai agents", "tool use",
+        "tool calling", "function calling", "mcp", "model context protocol", "langgraph",
+        "langchain", "autogen", "crewai", "computer use", "browser agent", "copilot",
+        "workflow automation", "agent evaluation", "agent eval",
+    ],
     "eval-quality": [
         "eval", "evaluation", "benchmark", "quality", "test automation", "reliability",
         "red team", "safety",

@@ -37,7 +37,7 @@ their own words (e.g. "F-1, CPT for internships", "US citizen").
 
 **Round 2 — what**: role families, multi-select. Options are the keys of `ROLE_PRESETS` in
 `autohunter/presets.py`: `ai-engineer`, `ml-infra`, `machine-learning`, `data-science`,
-`data-analyst`, `data-engineering`, `software-engineer`, `eval-quality`. Split across two questions
+`data-analyst`, `data-engineering`, `software-engineer`, `ai-agents`, `eval-quality`. Split across two questions
 if needed. Then ask for any niche keywords (→ `extra_topics`) and title words to exclude.
 
 **Round 3 — when / where**:

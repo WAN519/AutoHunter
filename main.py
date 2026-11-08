@@ -223,6 +223,8 @@ def cmd_daily(args, me: Path):
     main_py = Path(__file__).resolve()
     fn = {"evening": lambda: daily.evening(me), "night": lambda: daily.night(me, main_py),
           "morning": lambda: daily.morning(me, main_py), "checklist": lambda: daily.checklist(me),
+          "serve": lambda: daily.serve(me, main_py),
+          "today": lambda: (daily._open_checklist(u := daily.serve_background(me, main_py)), u)[1],
           "install": lambda: daily.install(me, main_py), "uninstall": daily.uninstall,
           "status": lambda: daily.status(me), "candidates": lambda: [
               f"#{r['id']} fit={r.get('fit_score') or '-'} {r['status']:<9} {r['company'][:18]:<18} {r['title'][:55]}"
@@ -344,7 +346,8 @@ def main():
     p.set_defaults(fn=cmd_doctor)
 
     p = sub.add_parser("daily", help="daily automation: evening / night / morning runs, launchd install")
-    p.add_argument("action", choices=["evening", "night", "morning", "checklist", "install", "uninstall", "status", "candidates"])
+    p.add_argument("action", choices=["evening", "night", "morning", "checklist", "serve", "today",
+                                      "install", "uninstall", "status", "candidates"])
     p.set_defaults(fn=cmd_daily)
 
     p = sub.add_parser("hotkey", help="install / update the Hammerspoon hotkey from your settings")

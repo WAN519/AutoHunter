@@ -74,6 +74,9 @@ def _oracle(u):
     return item.get("Title", ""), text
 
 
+MIN_JD_CHARS = 500  # less than this is page chrome or an empty JS shell, not a job description
+
+
 def fetch_jd(url: str) -> tuple[str, str]:
     """Return (title, plain-text description). Raises on network errors."""
     for fn in (_greenhouse, _lever, _ashby, _workday, _oracle):
@@ -101,7 +104,14 @@ def fetch_jd(url: str) -> tuple[str, str]:
                 return d.get("title", ""), strip_html(d.get("description", ""))
     title = re.search(r"<title>(.*?)</title>", raw, re.S)
     body = re.sub(r"<(script|style|nav|header|footer)[^>]*>.*?</\1>", "", raw, flags=re.S | re.I)
-    return (strip_html(title.group(1)) if title else ""), strip_html(body)
+    result = (strip_html(title.group(1)) if title else ""), strip_html(body)
+    # JS-rendered pages (careers.ibm.com) and bot challenges (202 with an empty body) come back
+    # "successfully" with no text. A real browser renders them.
+    if len(result[1]) < MIN_JD_CHARS:
+        got = _via_browser(url)
+        if got and len(got[1]) > len(result[1]):
+            return got
+    return result
 
 
 def _via_browser(url: str) -> tuple[str, str] | None:
@@ -120,8 +130,11 @@ def _via_browser(url: str) -> tuple[str, str] | None:
                 page.goto(url, wait_until="load", timeout=60000)
                 page.wait_for_timeout(3500)
                 title = page.title()
-                text = page.evaluate("""() => { const m = document.querySelector('main, [role=main], article') || document.body;
-                                              return m.innerText; }""")
+                # Prefer the main region, but some sites (careers.ibm.com) have a near-empty <main>
+                # and the posting elsewhere: then use the whole body.
+                text = page.evaluate("""() => { const m = document.querySelector('main, [role=main], article');
+                                              const t = m ? m.innerText : '';
+                                              return t.length >= 500 ? t : document.body.innerText; }""")
             finally:
                 page.close()
         return (title, text) if text and len(text) > 300 else None

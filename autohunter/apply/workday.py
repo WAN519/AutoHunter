@@ -242,8 +242,22 @@ def _profile_answer(profile, q: dict):
 def _listbox(page, key: str, cands: list[str]) -> str | None:
     btn = page.locator(f"[data-ah='{key}'] button[aria-haspopup=listbox]").first
     opts = []
-    for wait in (700, 1500):  # the popup sometimes renders late; open it again once
-        btn.click(force=True)
+    # The popup sometimes renders late (open it again once); near the bottom of a step a
+    # force-click can land on the sticky footer, so centre the button first and fall back
+    # to opening it from the keyboard.
+    for wait, how in ((700, "click"), (1500, "click"), (1500, "key")):
+        try:
+            btn.evaluate("b => b.scrollIntoView({block: 'center'})")
+        except Exception:
+            pass
+        if how == "click":
+            btn.click(force=True)
+        else:
+            btn.focus()
+            btn.press("Enter")
+            page.wait_for_timeout(500)
+            if not page.evaluate(POPUP_JS):
+                btn.press("ArrowDown")
         page.wait_for_timeout(wait)
         opts = page.evaluate(POPUP_JS)
         if opts:
@@ -426,16 +440,34 @@ def fill_experience(page, me: Path, profile, files: dict, skills: list[str], log
     for i, edu in enumerate(data.get("education", []), 1):
         try:
             panel = _panel(page, "Education", i)
+            deg = panel.locator("[data-automation-id='formField-degree']").first
+            deg_btn = deg.locator("button[aria-haspopup=listbox]").first
+            deg_empty = deg.count() > 0 and (
+                not deg_btn.count() or (deg_btn.inner_text() or "").strip() in ("", "Select One"))
             if panel.locator("[data-automation-id='formField-schoolName'] input").input_value():
-                continue
-            _set_text(panel, "schoolName", edu["school"])
-            k = panel.locator("[data-automation-id='formField-degree']").first.get_attribute("data-ah")
-            if k:
+                # Already there (previous run / resume parsing): keep it, but a required
+                # Degree left empty would block the step, so fill just that.
+                if not deg_empty:
+                    continue
+                only_degree = True
+            else:
+                only_degree = False
+                _set_text(panel, "schoolName", edu["school"])
+            k = deg.get_attribute("data-ah") if deg.count() else None
+            if deg.count() and not k:
+                deg.scroll_into_view_if_needed()
+                scan(page)  # key the fields again (panels added / rendered since the last scan)
+                k = deg.get_attribute("data-ah")
+            if deg.count() and not k:
+                problems.append(f"学历 {i} 的 Degree：找不到下拉框")
+            if k and deg_empty:
                 from .profile import DEGREES
                 key = {"Master's": "masters", "Bachelor's": "bachelors", "PhD": "phd"}.get(edu.get("degree"), "")
                 err = _listbox(page, k, DEGREES.get(key, [edu.get("degree", "")]) + ["Master of Science", "Bachelor of Engineering", "Bachelor of Science"])
                 if err:
                     problems.append(f"学历 {i} 的 Degree：{err}")
+            if only_degree:
+                continue
             k = panel.locator("[data-automation-id='formField-fieldOfStudy']").first.get_attribute("data-ah")
             if k:
                 field = edu.get("field", "")

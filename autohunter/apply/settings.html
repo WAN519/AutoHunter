@@ -53,6 +53,8 @@
     <div class="hint">用来提前识别“最多 2 年经验”这类你不符合的岗位。</div>
     <div class="row two"><label class="k">毕业时间：投实习 / 投 NG</label><input id="graduation_intern" type="text" placeholder="Dec 2027"><input id="graduation_ng" type="text" placeholder="May 2027"></div>
     <div class="hint">投实习填的毕业时间可以晚一些（比如拿到实习 offer 就延毕）；投 New Grad 填正常毕业时间。</div>
+    <div class="row two"><label class="k">具体日期（表单要日期时）：实习 / NG</label><input id="graduation_intern_date" type="text" placeholder="12/22/2027"><input id="graduation_ng_date" type="text" placeholder="05/15/2027"></div>
+    <div class="hint">格式 MM/DD/YYYY。表单要填到“哪一天”时用这个；只要月份的地方和简历上仍然用上面的月份。</div>
   </section>
 
   <section>
@@ -99,7 +101,7 @@
 <script>
 const $ = id => document.getElementById(id);
 const FIELDS = ["first_name","last_name","preferred_name","email","phone","city","state","country","linkedin","github","website",
-                "school","degree","major","years_experience","graduation_intern","graduation_ng","workday_email","google_account","hotkey","cutoff","fill_time","daily_cap","daily_budget_usd","panel"];
+                "school","degree","major","years_experience","graduation_intern","graduation_ng","graduation_intern_date","graduation_ng_date","workday_email","google_account","hotkey","cutoff","fill_time","daily_cap","daily_budget_usd","panel"];
 const REQ = ["first_name","last_name","email","phone","city"];
 let hasPassword = false;
 

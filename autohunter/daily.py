@@ -4,7 +4,10 @@
   night     at the cutoff: hunt → background /hunt fit scoring → pick the top N SHORTLIST jobs
             → background /tailor for each → me/output/today.json
   morning   at fill time: queue today's jobs on the handoff worker (fills one by one, never
-            submits), then write me/output/today.html and open it in the AutoHunter Chrome
+            submits), then open the checklist in the AutoHunter Chrome. Jobs on login-session
+            sites (Workday) are NOT pre-filled: their session expires while the form waits, which
+            wipes it. The checklist has a 「现在填」 button for them instead (fill right before review).
+  serve     the checklist as a tiny local page (127.0.0.1), so its buttons can queue fills
   install / uninstall / status   the three LaunchAgents
 
 Everything costs Claude usage; `daily_budget_usd` (settings) caps each night + morning run.
@@ -165,42 +168,121 @@ def night(me: Path, main_py: Path) -> list[dict]:
 
 # ---------------------------------------------------------------- morning
 
-def morning(me: Path, main_py: Path, wait_minutes: int = 120) -> Path:
+ON_DEMAND_DEFAULT = ["workday"]
+
+
+def _today(me: Path) -> list[dict]:
+    p = _out(me, "today.json")
+    return json.loads(p.read_text(encoding="utf-8")) if p.exists() else []
+
+
+def on_demand(me: Path, url: str) -> bool:
+    """Login-session sites: fill only when the user is ready to review (settings: apply.fill_on_demand)."""
+    from .apply.form import platform_of
+    plats = _cfg(me).get("apply", {}).get("fill_on_demand", ON_DEMAND_DEFAULT)
+    return platform_of(url) in plats
+
+
+def _per_job_budget(me: Path, n_jobs: int) -> float:
+    budget = float(_cfg(me).get("apply", {}).get("daily_budget_usd", 10))
+    return round(max(1.0, budget * 0.5 / max(1, n_jobs)), 2)
+
+
+def morning(me: Path, main_py: Path, wait_minutes: int = 120) -> str:
     from .apply.form import base_url
-    today = json.loads(_out(me, "today.json").read_text(encoding="utf-8")) if _out(me, "today.json").exists() else []
+    today = _today(me)
     items = handoff.load_queue(me)
     queued = {q["base"] for q in items if q["state"] in ("queued", "running")}
-    budget = float(_cfg(me).get("apply", {}).get("daily_budget_usd", 10))
-    per_job = round(max(1.0, budget * 0.5 / max(1, len(today))), 2)
-    for j in today:
-        if j["state"] != "prepared" or base_url(j["url"]) in queued:
-            continue
+    per_job = _per_job_budget(me, len(today))
+    later = [j for j in today if j["state"] == "prepared" and on_demand(me, j["url"])]
+    now = [j for j in today if j["state"] == "prepared" and not on_demand(me, j["url"])
+           and base_url(j["url"]) not in queued]
+    for j in now:
         items.append({"base": base_url(j["url"]), "url": j["url"], "tracker_id": j["id"], "company": j["company"],
                       "title": j["title"], "added": datetime.now().isoformat(timespec="seconds"), "state": "queued",
                       "daily": date.today().isoformat(), "budget": per_job})
     handoff.save_queue(me, items)
-    if today:
-        handoff.notify("AutoHunter", f"早上好：开始填今天的 {len(today)} 个岗位")
+    if now:
+        handoff.notify("AutoHunter", f"早上好：开始填今天的 {len(now)} 个岗位")
         handoff.start_worker(me, main_py)
     end = time.time() + wait_minutes * 60
     while time.time() < end and any(q["state"] in ("queued", "running") for q in handoff.load_queue(me)):
         time.sleep(20)
-    page = checklist(me)
-    _open_checklist(page)
+    checklist(me)  # static copy, in case the local page isn't reachable
+    url = serve_background(me, main_py)
+    _open_checklist(url)
     done = sum(1 for q in handoff.load_queue(me) if q.get("daily") == date.today().isoformat() and q["state"] == "done")
-    handoff.notify("AutoHunter", f"今日清单：{done}/{len(today)} 个已填好，等你检查提交")
-    _log(me, f"morning: {done}/{len(today)} filled → {page}")
-    return page
+    msg = f"今日清单：{done} 个已填好，等你检查提交"
+    if later:
+        msg += f"；{len(later)} 个 Workday 岗位等你点「现在填」"
+    handoff.notify("AutoHunter", msg)
+    _log(me, f"morning: {done}/{len(now)} filled, {len(later)} on demand → {url}")
+    return url
 
 
-def checklist(me: Path) -> Path:
-    """me/output/today.html: one card per job with its state, resume changes, what to check."""
+def enqueue_now(me: Path, main_py: Path, tid: str) -> str:
+    """The checklist's 「现在填」/「重新填一遍」 button: queue one of today's jobs right away."""
+    from .apply.form import base_url
+    from .apply.log import drop_pending, load_pending
+    today = _today(me)
+    j = next((x for x in today if x["id"] == tid), None)
+    if not j:
+        return "not in today's list"
+    base = base_url(j["url"])
+    items = handoff.load_queue(me)
+    if any(q["base"] == base and q["state"] in ("queued", "running") for q in items):
+        return "already running"
+    # A pending fill means this is a redo (session expired / submit failed): drop the stale entry
+    # and skip re-tailoring.
+    refill = any(p["base"] == base for p in load_pending(me))
+    if refill:
+        drop_pending(me, base)
+    items.append({"base": base, "url": j["url"], "tracker_id": j["id"], "company": j["company"],
+                  "title": j["title"], "added": datetime.now().isoformat(timespec="seconds"), "state": "queued",
+                  "daily": date.today().isoformat(), "budget": _per_job_budget(me, len(today)), "refill": refill})
+    handoff.save_queue(me, items)
+    handoff.start_worker(me, main_py)
+    return "queued"
+
+
+def _card_state(me: Path, j: dict, q: dict, p: dict, applied: set) -> tuple[str, str, str]:
+    """(state text, css class, button) for one checklist card. button: "" | "fill" | "refill" | "retry"."""
+    workday = on_demand(me, j["url"])
+    if j["id"] in applied:
+        return "✅ 已提交", "ok", ""
+    if q.get("state") in ("queued", "running"):
+        return "⏳ 正在填…（1–2 分钟，填好会通知你）", "wait", ""
+    if p and p.get("failed_notified"):
+        return "⚠️ 页面过期或提交失败，表单可能已经被清空。点「重新填一遍」，填好后尽快检查提交", "warn", "refill"
+    if p:
+        if workday:
+            filled = (p.get("started") or "")[11:16]
+            return (f"🟢 已填好（{filled}），等你检查并提交。Workday 闲置太久会过期，请尽快处理，"
+                    f"过期了就点「重新填一遍」"), "ready", "refill"
+        return "🟢 已填好，等你检查并提交", "ready", ""
+    if q.get("state") == "failed":
+        return f"⚠️ 没填完：{q.get('result', '')}", "warn", "retry"
+    if q.get("state") == "done":
+        kit = j.get("folder") and (me / "applications" / j["folder"] / "manual_kit.html").exists()
+        if kit:
+            return "🟢 已准备好手动提交包：这个网站不接受自动提交，打开文件夹里的 manual_kit.html 照着填", "ready", ""
+        return "🟢 已处理（没有找到待提交的表单，可能已经提交过或标签页被关掉了）", "ready", "retry"
+    if j["state"] == "no-resume":
+        return "⚠️ 简历没准备好", "warn", ""
+    if workday:
+        return ("🔵 简历已准备好。Workday 填好后闲置太久会被清空，所以等你有空检查时再填："
+                "点「现在填」，1–2 分钟填好"), "todo", "fill"
+    return "⏳ " + q.get("state", "未开始"), "wait", ""
+
+
+def render_checklist(me: Path, token: str = "") -> str:
+    """The checklist HTML. With a token (served by `daily serve`) cards get working buttons."""
     from .apply.log import load_pending
-    today = json.loads(_out(me, "today.json").read_text(encoding="utf-8")) if _out(me, "today.json").exists() else []
-    queue = {q["tracker_id"]: q for q in handoff.load_queue(me)}
+    today = _today(me)
+    queue = {q["tracker_id"]: q for q in handoff.load_queue(me)}  # later entries win
     pending = {p.get("tracker_id"): p for p in load_pending(me)}
     applied = {r.get("tracker_id") for r in _applied(me)}
-    cards = []
+    cards, busy = [], False
     for j in today:
         q, p = queue.get(j["id"], {}), pending.get(j["id"], {})
         summary = {}
@@ -208,47 +290,137 @@ def checklist(me: Path) -> Path:
             sp = me / "applications" / j["folder"] / "summary.json"
             if sp.exists():
                 summary = json.loads(sp.read_text(encoding="utf-8"))
-        if j["id"] in applied:
-            state, cls = "✅ 已提交", "ok"
-        elif p:
-            state, cls = "🟢 已填好，等你检查并提交", "ready"
-        elif q.get("state") == "failed":
-            state, cls = f"⚠️ 没填完：{q.get('result', '')}", "warn"
-        elif j["state"] == "no-resume":
-            state, cls = "⚠️ 简历没准备好", "warn"
+        state, cls, button = _card_state(me, j, q, p, applied)
+        busy = busy or q.get("state") in ("queued", "running")
+        label = {"fill": "现在填", "refill": "重新填一遍", "retry": "再试一次"}.get(button, "")
+        if label and token:
+            action = (f'<form method="post" action="/fill"><input type="hidden" name="id" value="{html.escape(j["id"])}">'
+                      f'<input type="hidden" name="token" value="{token}"><button>{label}</button></form>')
+        elif label:
+            action = f'<div class="meta">（{label}：运行 <code>uv run main.py daily serve</code> 打开可点按钮的清单）</div>'
         else:
-            state, cls = "⏳ " + q.get("state", "未开始"), "wait"
+            action = ""
         todo = (p.get("panel") or {}).get("todo", [])
         pts = (summary.get("resume") or {}).get("points", [])
         cards.append(f"""
         <section class="{cls}"><h2>{html.escape(j['company'])} · {html.escape(j['title'])}</h2>
         <div class="meta">匹配 {html.escape(str(j.get('fit') or '?'))} · <a href="{html.escape(j['url'])}">岗位页面</a></div>
-        <div class="state">{html.escape(state)}</div>
+        <div class="state">{html.escape(state)}</div>{action}
         {'<b>📄 简历改动</b><ul>' + ''.join(f'<li>{html.escape(x)}</li>' for x in pts) + '</ul>' if pts else ''}
         {'<b>⚠️ 需要你看</b><ul>' + ''.join(f'<li>{html.escape(x)}</li>' for x in todo) + '</ul>' if todo else ''}
         </section>""")
     body = "".join(cards) or "<p>今天没有安排岗位。</p>"
-    page = _out(me, "today.html")
-    page.write_text(f"""<!doctype html><meta charset="utf-8"><title>AutoHunter 今日清单</title>
+    # Served page refreshes itself: fast while a fill runs, slowly otherwise (the watcher may mark
+    # a Workday form as expired at any time).
+    refresh = f'<meta http-equiv="refresh" content="{8 if busy else 60}">' if token else ""
+    return f"""<!doctype html><meta charset="utf-8">{refresh}<title>AutoHunter 今日清单</title>
 <style>body{{font:14px/1.5 -apple-system,"PingFang SC",sans-serif;background:#f5f5f7;margin:0}} main{{max-width:760px;margin:28px auto;padding:0 16px}}
 h1{{font-size:22px}} section{{background:#fff;border-radius:12px;padding:14px 18px;margin:12px 0;border-left:5px solid #d2d2d7}}
-section.ready{{border-color:#34c759}} section.warn{{border-color:#ff9f0a}} section.ok{{border-color:#0071e3}} h2{{font-size:16px;margin:0 0 4px}}
-.meta{{color:#6e6e73;font-size:12px}} .state{{margin:8px 0;font-weight:600}} ul{{margin:4px 0 8px;padding-left:20px}}</style>
+section.ready{{border-color:#34c759}} section.warn{{border-color:#ff9f0a}} section.ok{{border-color:#0071e3}} section.todo{{border-color:#5e5ce6}}
+h2{{font-size:16px;margin:0 0 4px}} .meta{{color:#6e6e73;font-size:12px}} .state{{margin:8px 0;font-weight:600}} ul{{margin:4px 0 8px;padding-left:20px}}
+button{{background:#0071e3;color:#fff;border:0;border-radius:8px;padding:6px 14px;font-size:14px;cursor:pointer;margin-bottom:6px}}</style>
 <main><h1>AutoHunter 今日清单 · {date.today().isoformat()}</h1>
-<p>填好的岗位都在 AutoHunter 的 Chrome 标签页里，每页右上角有面板。检查后你自己点 Submit，提交后会自动记录。</p>{body}</main>""",
-                    encoding="utf-8")
+<p>填好的岗位都在 AutoHunter 的 Chrome 标签页里，每页右上角有面板。检查后你自己点 Submit，提交后会自动记录。</p>{body}</main>"""
+
+
+def checklist(me: Path) -> Path:
+    """Static me/output/today.html (no working buttons). `daily serve` is the interactive one."""
+    page = _out(me, "today.html")
+    page.write_text(render_checklist(me), encoding="utf-8")
     return page
 
 
-def _open_checklist(page: Path) -> None:
+# ---------------------------------------------------------------- local checklist page
+
+SERVE_HOURS = 16
+
+
+def _serve_state(me: Path) -> Path:
+    return _out(me, ".today_server.json")
+
+
+def _server_url(me: Path) -> str | None:
+    """URL of a running checklist server, or None."""
+    try:
+        st = json.loads(_serve_state(me).read_text(encoding="utf-8"))
+        os.kill(int(st["pid"]), 0)
+        return st["url"]
+    except (OSError, ValueError, KeyError):
+        return None
+
+
+def serve(me: Path, main_py: Path, hours: float = SERVE_HOURS) -> None:
+    """Serve the checklist on 127.0.0.1 with a per-run token (blocks; run in the background)."""
+    import secrets
+    import threading
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+    from urllib.parse import parse_qs
+
+    token = secrets.token_urlsafe(16)
+
+    class H(BaseHTTPRequestHandler):
+        def log_message(self, *a):
+            pass
+
+        def _html(self, body: str, code: int = 200):
+            data = body.encode("utf-8")
+            self.send_response(code)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+
+        def do_GET(self):
+            if self.path.split("?")[0] != "/":
+                return self._html("not found", 404)
+            self._html(render_checklist(me, token))
+
+        def do_POST(self):
+            n = int(self.headers.get("Content-Length") or 0)
+            form = {k: v[0] for k, v in parse_qs(self.rfile.read(n).decode("utf-8")).items()}
+            if self.path != "/fill" or form.get("token") != token:  # token blocks other sites posting here
+                return self._html("forbidden", 403)
+            result = enqueue_now(me, main_py, form.get("id", ""))
+            _log(me, f"checklist: fill #{form.get('id')} → {result}")
+            self.send_response(303)
+            self.send_header("Location", "/")
+            self.end_headers()
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), H)
+    url = f"http://127.0.0.1:{server.server_address[1]}/"
+    _serve_state(me).write_text(json.dumps({"pid": os.getpid(), "url": url}), encoding="utf-8")
+    threading.Timer(hours * 3600, server.shutdown).start()
+    try:
+        server.serve_forever()
+    finally:
+        _serve_state(me).unlink(missing_ok=True)
+
+
+def serve_background(me: Path, main_py: Path) -> str:
+    """Start `daily serve` detached unless it's already running; return its URL (or the static file)."""
+    url = _server_url(me)
+    if url:
+        return url
+    logf = open(_out(me, "daily.log"), "a", encoding="utf-8")
+    subprocess.Popen([sys.executable, str(main_py), "--me", str(me), "daily", "serve"], cwd=str(main_py.parent),
+                     stdout=logf, stderr=logf, stdin=subprocess.DEVNULL, start_new_session=True)
+    for _ in range(50):
+        time.sleep(0.2)
+        url = _server_url(me)
+        if url:
+            return url
+    return checklist(me).resolve().as_uri()
+
+
+def _open_checklist(url: str) -> None:
     try:
         from .apply.browser import connect
         with connect() as (_, _, ctx):
-            tab = next((p for p in ctx.pages if p.url.endswith("today.html")), None) or ctx.new_page()
-            tab.goto(page.resolve().as_uri())
+            tab = next((p for p in ctx.pages if p.url.endswith("today.html") or p.url == url), None) or ctx.new_page()
+            tab.goto(url)
             tab.bring_to_front()
     except Exception:
-        subprocess.run(["open", str(page)])
+        subprocess.run(["open", url])
 
 
 # ---------------------------------------------------------------- launchd
