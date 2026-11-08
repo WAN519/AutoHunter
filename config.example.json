@@ -89,5 +89,25 @@
     "daily_cap": 5,
     "daily_budget_usd": 10,
     "panel": "collapsed"
+  },
+  "outreach": {
+    "_comment": "Used by /outreach. compensation: unpaid-ok | stipend-preferred | paid-only",
+    "compensation": "stipend-preferred",
+    "availability": [
+      {
+        "type": "part-time",
+        "start": "January 2027",
+        "end": "April 2027",
+        "hours_per_week": 20,
+        "note": "spring semester"
+      }
+    ],
+    "work_mode": "remote, or on-site in Boston",
+    "must_have": "real project work I can describe on my resume",
+    "yc": {
+      "min_team": 2,
+      "max_team": 15,
+      "min_batch_year": 2023
+    }
   }
 }

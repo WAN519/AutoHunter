@@ -251,6 +251,30 @@ def fetch_hn(token: str = "whoishiring") -> list[Job]:
     return jobs
 
 
+YC_HIRING_URL = "https://yc-oss.github.io/api/companies/hiring.json"
+
+
+def fetch_yc_hiring() -> list[dict]:
+    """YC companies currently marked as hiring (community mirror of YC's public directory).
+    Companies, not postings: used as outreach leads for small startups."""
+    out = []
+    for c in _get_json(YC_HIRING_URL):
+        if c.get("status") != "Active":
+            continue
+        year = re.search(r"(20\d\d)", c.get("batch") or "")
+        out.append({
+            "company": c.get("name", ""), "one_liner": c.get("one_liner") or "",
+            "description": c.get("long_description") or "",
+            "tags": ", ".join((c.get("tags") or []) + (c.get("industries") or [])),
+            "team_size": c.get("team_size") or 0, "batch": c.get("batch") or "",
+            "batch_year": int(year.group(1)) if year else 0,
+            "location": c.get("all_locations") or "", "regions": ", ".join(c.get("regions") or []),
+            "website": c.get("website") or "",
+            "yc_link": f"https://www.ycombinator.com/companies/{c.get('slug', '')}",
+        })
+    return out
+
+
 ATS_FETCHERS = {"greenhouse": fetch_greenhouse, "lever": fetch_lever, "ashby": fetch_ashby,
                 "workday": fetch_workday, "smartrecruiters": fetch_smartrecruiters, "hn": fetch_hn}
 

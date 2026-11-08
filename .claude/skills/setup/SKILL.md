@@ -60,6 +60,15 @@ text and estimated page count look right.
 - 3–5 sentences about themselves and what they want, for cover letters and outreach
 - Optional: an approved cover letter to use as a style reference
 
+**Round 6 — outreach (optional; for cold emails to startups via /outreach)**:
+- Compensation: `unpaid-ok` / `stipend-preferred` / `paid-only`. If they pick unpaid, say it
+  plainly: it's fine only if the work is real, with a supervisor and an offer letter for CPT.
+  Paper-only "internships" or paying for one put their status at risk.
+- Availability windows they could offer (full-time and/or part-time; start, end, hours per week),
+  matching what their school would approve for CPT.
+- Work mode: remote, and/or the city they can work on-site in.
+Saved as the `outreach` block (see `config.example.json`).
+
 ## 3. Write files
 
 - `me/config.json`: same keys as `config.example.json`, filled from the interview. Keep

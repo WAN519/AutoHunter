@@ -24,7 +24,7 @@
 | 发链接让我填 | 在 Claude Code 里说「帮我填这个 + 链接」 |
 | 找新岗位并打分 | `/hunt` |
 | 给某几个岗位改简历 | `/tailor 12 15` |
-| 给没挂岗位的公司发冷邮件（比如问兼职 CPT） | `/outreach`，线索来自 `uv run main.py leads` |
+| 给没挂岗位的公司发冷邮件（兼职 CPT、无薪但有真实项目的实习） | `/outreach`：从小型 YC 创业公司和 HN 招聘帖里挑公司，先核实公司是不是真的在运营，再按你的简历提一个具体的项目想法，写邮件草稿 |
 | 告诉它简历该怎么改 | 直接说，例如「summary 太长了」，它会记住（`/style`） |
 | 每天自动投 | 22:30 弹窗问明天投几个 → 23:00 搜岗位、打分、改简历 → 08:00 填好表，打开「今日清单」。**Workday 的岗位不提前填**（闲置会过期，已填内容会被清空）：简历先准备好，你准备检查时在清单上点「现在填」，1–2 分钟填好 |
 | 重新打开今日清单 | `uv run main.py daily today` |
@@ -49,7 +49,7 @@
 另外：
 - `me/output/contacts.csv`：每次 `hunt` 后，所有出现过的公司的联系人搜索链接汇总在这里
 - `me/applications/outreach/`：`/outreach` 写的冷邮件（给没挂岗位的公司，例如问兼职 CPT）
-- `me/output/leads.csv`：`uv run main.py leads` 从 Hacker News 招聘帖里整理出来的兼职 / 实习线索
+- `me/output/leads.csv`：`uv run main.py leads` 整理出来的线索：Hacker News 招聘帖里的兼职 / 实习，加上正在招人的小型 YC 创业公司（按你的方向匹配，agent 公司会分成评估 / 基础设施 / 行业应用）
 
 所有邮件和留言都只是**草稿**，由你自己发，程序不会替你联系任何人。
 

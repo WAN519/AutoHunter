@@ -13,7 +13,7 @@
   daily install|status|...  every day: evening "how many?", night prep, morning fill + checklist
   hotkey install            set up the job-handoff hotkey (Hammerspoon) from your settings
   handoff <url>             what the hotkey runs: dedupe → tracker → background tailor + fill
-  leads                     part-time / intern leads from HN Who-is-hiring -> output/leads.csv
+  leads [--source hn|yc]    companies to email (HN Who-is-hiring + small hiring YC startups) -> output/leads.csv
   settings                  settings form: contact info, Workday password (Keychain), schedule
   apply scan|fill|go <url>  fill an application in the AutoHunter Chrome (never submits)
   apply kit <url>           manual-submit kit for sites that reject automated submits
@@ -161,46 +161,24 @@ def cmd_contacts(args, me: Path):
 
 
 def cmd_leads(args, me: Path):
-    """Part-time / intern / contract mentions from the latest HN Who-is-hiring thread → leads.csv.
-    These usually aren't postings you can apply to; they're companies to email (see /outreach)."""
-    import re
-    from autohunter.scoring import location_ok
-    from autohunter.sources import fetch_hn
+    """Companies to email (see /outreach), not postings: HN Who-is-hiring part-time / intern
+    mentions and small hiring YC startups matching your roles → me/output/leads.csv."""
+    from autohunter import leads
+    if args.update:
+        n = leads.update(me, json.loads(Path(args.update).read_text(encoding="utf-8")))
+        print(f"updated {n} leads")
+        return
     cfg = C.load_user(me)
-    out = me / "output" / "leads.csv"
-    fields = ["kind", "company", "headline", "location", "remote", "apply_link", "hn_link", "snippet",
-              "thread", "first_seen", "status", "notes"]
-    old = {}
-    if out.exists():
-        with out.open(newline="", encoding=tracker.ENCODING) as f:
-            old = {r["hn_link"]: r for r in csv.DictReader(f)}
-    from datetime import date
-    rows = []
-    for j in fetch_hn():
-        if j.location and not location_ok(j, cfg):
-            continue
-        text = j.description
-        kind = ", ".join(k for k, pat in (("part-time", r"part[- ]time"), ("intern", r"\bintern(ship)?s?\b"),
-                                           ("co-op", r"\bco-?op\b"), ("contract", r"\bcontract(or)?\b"))
-                         if re.search(pat, text, re.I))
-        m = re.search(r"part[- ]time|\bintern(ship)?s?\b|\bco-?op\b", text, re.I)
-        snippet = text[max(0, m.start() - 120): m.end() + 160].replace("\n", " ") if m else text[:280]
-        hn = j.url if "news.ycombinator.com" in j.url else ""
-        key = hn or j.url
-        prev = old.get(key, {})
-        rows.append({"kind": kind, "company": j.company, "headline": j.title, "location": j.location,
-                     "remote": "yes" if j.remote else "", "apply_link": j.extra.get("apply_url", ""), "hn_link": key,
-                     "snippet": snippet.strip(), "thread": j.extra.get("thread", ""),
-                     "first_seen": prev.get("first_seen") or date.today().isoformat(),
-                     "status": prev.get("status", ""), "notes": prev.get("notes", "")})
-    rows.sort(key=lambda r: ("part-time" not in r["kind"], r["remote"] != "yes", r["company"].lower()))
-    with out.open("w", newline="", encoding=tracker.ENCODING) as f:
-        w = csv.DictWriter(f, fieldnames=fields)
-        w.writeheader()
-        w.writerows(rows)
-    print(f"{len(rows)} leads -> {out}")
-    for r in rows[: args.top]:
-        print(f"  [{r['kind']}] {r['company'][:24]:<24} {r['location'][:28]:<28} {r['apply_link'][:50]}")
+    sources = ["hn", "yc"] if args.source == "all" else [args.source]
+    rows, errors = leads.refresh(me, cfg, sources)
+    for e in errors:
+        print("  ! " + e)
+    print(f"{len(rows)} leads -> {me / 'output' / 'leads.csv'}")
+    shown = [r for r in rows if not r.get("status") and (args.source == "all" or r.get("source", "hn") == args.source)]
+    for r in shown[: args.top]:
+        size = f"{r['team_size']}p {r['batch']}" if r.get("source") == "yc" else r.get("kind", "")
+        print(f"  {r.get('fit', ''):>3} [{r.get('source', 'hn')}] {r['company'][:22]:<22} {size[:22]:<22} "
+              f"{r.get('segment', '')[:26]:<26} {r['headline'][:50]}")
 
 
 def cmd_handoff(args, me: Path):
@@ -354,8 +332,10 @@ def main():
     p.add_argument("action", choices=["install"])
     p.set_defaults(fn=cmd_hotkey)
 
-    p = sub.add_parser("leads", help="part-time / intern mentions from HN Who-is-hiring (for outreach)")
+    p = sub.add_parser("leads", help="companies to email: HN Who-is-hiring mentions + small hiring YC startups")
     p.add_argument("--top", type=int, default=20)
+    p.add_argument("--source", choices=["all", "hn", "yc"], default="all")
+    p.add_argument("--update", metavar="FILE.json", help='set check/status/notes: [{"company": ..., "check": ...}]')
     p.set_defaults(fn=cmd_leads)
 
     p = sub.add_parser("settings", help="open the settings form (contact info, passwords, schedule)")
